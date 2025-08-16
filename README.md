@@ -120,4 +120,8 @@ MIT
 
 **Tip:**  
 If Beerizer changes their HTML, you may need to update the CSS selectors in the script.  
+<<<<<<< HEAD
 You can change the batch size by editing `BATCH_SIZE` in `scrape_and_analyze.py`.
+=======
+You can change the batch size by editing `BATCH_SIZE` in `scrape_and_analyze.py`.
+>>>>>>> 3a0065e (Update README and scripts)

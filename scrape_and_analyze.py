@@ -171,4 +171,8 @@ while page_num <= NUM_PAGES:
 
     page_num = batch_end + 1
 
+<<<<<<< HEAD
 print(f"\n✅ Scraping and analysis complete. Data saved to batch CSVs and '{MASTER_CSV}'")
+=======
+print(f"\n✅ Scraping and analysis complete. Data saved to batch CSVs and '{MASTER_CSV}'")
+>>>>>>> 3a0065e (Update README and scripts)
