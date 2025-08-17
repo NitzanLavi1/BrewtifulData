@@ -1,0 +1,10 @@
+````
+
+---
+
+**Summary of changes:**
+- All outputs (master and batch CSVs) go into `outputs/` and `outputs/paginated/`.
+- `.gitignore` ensures outputs are not tracked, except for the folder structure.
+- `.gitkeep` keeps the empty folder in git.
+
+Let me know if you want the exact code patch for any script!
