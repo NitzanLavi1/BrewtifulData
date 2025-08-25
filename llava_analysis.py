@@ -18,6 +18,8 @@ import time
 import base64
 from typing import Dict, List, Optional
 from datetime import datetime
+from config import BEER_IMAGE_DIR, LLAVA_OUTPUT_CSV, LLAVA_OUTPUT_JSON, LLAVA_BEERS_CSV
+import re
 
 # Configuration
 OLLAMA_BASE_URL = "http://localhost:11434"
@@ -25,11 +27,6 @@ DEFAULT_MODEL = "llava:7b"  # LLaVA model for vision analysis
 MAX_RETRIES = 3
 RETRY_DELAY = 2
 MAX_BEERS = 10  # Limit to 5 beers for testing
-
-# File paths
-BEERS_CSV = "beers.csv"
-OUTPUT_CSV = "llava_colors.csv"
-OUTPUT_JSON = "llava_colors.json"
 
 def check_ollama_connection():
     """Check if Ollama is running and accessible."""
@@ -98,102 +95,49 @@ Respond with valid JSON only.
 """
     return prompt
 
-def analyze_beer_with_llava(beer_data: Dict, model: str = DEFAULT_MODEL) -> Dict:
-    """Analyze beer label using LLaVA vision model."""
-    
-    # Get image path
-    image_file = beer_data['image_file']
-    image_path = os.path.join("beer_images", image_file)
-    
-    if not os.path.exists(image_path):
-        return {"error": f"Image file not found: {image_path}"}
-    
-    # Encode image to base64
-    image_base64 = encode_image_to_base64(image_path)
-    if not image_base64:
-        return {"error": "Failed to encode image"}
-    
-    # Create prompt
-    prompt = create_llava_prompt(beer_data)
-    
-    for attempt in range(MAX_RETRIES):
-        try:
-            # For LLaVA, we need to use the correct API format
-            payload = {
-                "model": model,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.7,
-                    "top_p": 0.9,
-                    "num_predict": 3000
-                }
-            }
-            
-            # Add image data - LLaVA expects images in the payload
-            payload["images"] = [image_base64]
-            
-            response = requests.post(
-                f"{OLLAMA_BASE_URL}/api/generate",
-                json=payload,
-                timeout=300  # Much longer timeout for vision models (5 minutes)
-            )
-            
-            if response.status_code == 200:
-                content = response.json().get('response', '')
-                
-                # Try to extract JSON from the response
-                try:
-                    # Look for JSON in the response
-                    if '```json' in content:
-                        json_start = content.find('```json') + 7
-                        json_end = content.find('```', json_start)
-                        json_str = content[json_start:json_end].strip()
-                    elif '{' in content and '}' in content:
-                        json_start = content.find('{')
-                        json_end = content.rfind('}') + 1
-                        json_str = content[json_start:json_end]
-                    else:
-                        json_str = content
-                    
-                    # Try to clean up common JSON issues
-                    json_str = json_str.replace('\n', ' ').replace('\r', ' ')
-                    json_str = ' '.join(json_str.split())  # Remove extra whitespace
-                    
-                    analysis = json.loads(json_str)
-                    return analysis
-                    
-                except json.JSONDecodeError as e:
-                    print(f"JSON parsing error for {beer_data['beer_name']} (attempt {attempt + 1}): {e}")
-                    print(f"Raw content preview: {content[:500]}...")
-                    
-                    # Try to create a fallback analysis from the text
-                    try:
-                        fallback_analysis = create_fallback_analysis(content, beer_data)
-                        return fallback_analysis
-                    except:
-                        if attempt < MAX_RETRIES - 1:
-                            time.sleep(RETRY_DELAY)
-                            continue
-                        else:
-                            return {"error": "Failed to parse LLaVA response", "raw_response": content}
-            else:
-                print(f"LLaVA API error for {beer_data['beer_name']} (attempt {attempt + 1}): {response.status_code}")
-                if attempt < MAX_RETRIES - 1:
-                    time.sleep(RETRY_DELAY)
-                    continue
-                else:
-                    return {"error": f"API error: {response.status_code}"}
-                    
-        except requests.exceptions.RequestException as e:
-            print(f"Request error for {beer_data['beer_name']} (attempt {attempt + 1}): {e}")
-            if attempt < MAX_RETRIES - 1:
-                time.sleep(RETRY_DELAY)
-                continue
-            else:
-                return {"error": f"Request error: {str(e)}"}
-    
-    return {"error": "Max retries exceeded"}
+def analyze_beer_with_llava(image_path, beer_data, model_name):
+    try:
+        image_b64 = encode_image_to_base64(image_path)
+        prompt = create_llava_prompt(beer_data)
+        payload = {
+            "model": model_name,
+            "prompt": prompt,
+            "images": [image_b64]
+        }
+        response = requests.post(
+            f"{OLLAMA_BASE_URL}/api/generate",
+            json=payload,
+            timeout=60
+        )
+
+        # Collect all 'response' fragments from the streaming JSON lines
+        lines = response.text.strip().splitlines()
+        fragments = []
+        for line in lines:
+            try:
+                obj = json.loads(line)
+                fragments.append(obj.get("response", ""))
+            except Exception:
+                pass
+
+        full_response = "".join(fragments)
+
+        # Extract JSON block from the full response
+        match = re.search(r'\{[\s\S]*?\}', full_response)
+        if match:
+            try:
+                analysis = json.loads(match.group(0))
+                return analysis
+            except Exception:
+                return create_fallback_analysis(full_response, beer_data)
+        else:
+            return create_fallback_analysis(full_response, beer_data)
+    except Exception as e:
+        return {
+            "label_color": "N/A",
+            "text_color": "N/A",
+            "error": str(e)
+        }
 
 def create_fallback_analysis(content: str, beer_data: Dict) -> Dict:
     """Create a fallback analysis when JSON parsing fails."""
@@ -225,11 +169,9 @@ def create_fallback_analysis(content: str, beer_data: Dict) -> Dict:
     
     return analysis
 
-
-
 def load_beer_data() -> pd.DataFrame:
     """Load beer metadata from CSV."""
-    beers_df = pd.read_csv(BEERS_CSV)
+    beers_df = pd.read_csv(LLAVA_BEERS_CSV)
     
     # Clean up URLs in beers_df
     def extract_url(cell):
@@ -243,7 +185,7 @@ def load_beer_data() -> pd.DataFrame:
     
     return beers_df
 
-def save_llava_results(results: List[Dict], output_csv: str, output_json: str):
+def save_llava_results(results: List[Dict], output_csv: str = LLAVA_OUTPUT_CSV, output_json: str = LLAVA_OUTPUT_JSON):
     """Save LLaVA analysis results to CSV and JSON files."""
     
     # Save as JSON for detailed analysis
@@ -323,7 +265,7 @@ def main():
     beers_with_images = []
     for _, row in beers_df.iterrows():
         image_file = row['Image_File']
-        image_path = os.path.join("beer_images", image_file)
+        image_path = os.path.join(BEER_IMAGE_DIR, image_file)
         if os.path.exists(image_path):
             beers_with_images.append(row)
     
@@ -350,21 +292,24 @@ def main():
             'rating': row['Rating'],
             'country': row.get('Country', 'Unknown')
         }
-        
+
         beer_name = beer_data['beer_name'] or beer_data['image_file']
         print(f"🎨 Analyzing {beer_name} ({idx + 1}/{len(beers_to_analyze)})...")
-        
+
+        # Define image_path here
+        image_path = os.path.join(BEER_IMAGE_DIR, beer_data['image_file'])
+
         # Start timing
         start_time = time.time()
-        
-        analysis = analyze_beer_with_llava(beer_data, model_name)
-        
+
+        analysis = analyze_beer_with_llava(image_path, beer_data, model_name)
+
         # End timing
         end_time = time.time()
         analysis_time = end_time - start_time
-        
+
         print(f"⏱️  Analysis completed in {analysis_time:.2f} seconds")
-        
+
         results.append({
             'beer_data': beer_data,
             'analysis': analysis,
@@ -376,7 +321,7 @@ def main():
     
     # Save results
     print("💾 Saving LLaVA analysis results...")
-    save_llava_results(results, OUTPUT_CSV, OUTPUT_JSON)
+    save_llava_results(results)
     
     # Calculate timing summary
     total_time = sum(result.get('analysis_time', 0) for result in results)
@@ -387,8 +332,19 @@ def main():
     print(f"   Total analysis time: {total_time:.2f} seconds")
     print(f"   Average time per beer: {avg_time:.2f} seconds")
     print(f"   Beers analyzed: {len(results)}")
-    print(f"📁 Check {OUTPUT_CSV} for summary results")
-    print(f"📁 Check {OUTPUT_JSON} for detailed visual analysis")
+    print(f"📁 Check {LLAVA_OUTPUT_CSV} for summary results")
+    print(f"📁 Check {LLAVA_OUTPUT_JSON} for detailed visual analysis")
+
+    # Example usage of scrape_page
+    beer_rows = scrape_page(p)
+    parsed = parse_beer_div(beer)
+    if not parsed:
+        print("Beer NOT appended (missing or invalid data).")
+    if parsed["image_url"]:
+        print(f"About to analyze image for {parsed['name']}")
+        # ...rest of your code...
+    print(f"Parsed beer: {parsed['name']}, image_url: {parsed['image_url']}")
+    print(f"Found {len(beer_rows)} beers on page {p}")
 
 if __name__ == "__main__":
     main()

@@ -50,6 +50,8 @@ with open(CSV_PATH, mode="w", newline="", encoding="utf-8") as csv_file:
 
                 rating_tag = beer.select_one('meta[itemprop="ratingValue"]')
                 rating = rating_tag["content"] if rating_tag else "N/A"
+                if rating == "N/A":
+                    continue  # Skip this beer if no rating
 
                 abv_tag = beer.select_one("span.abv.value")
                 abv = abv_tag.get_text(strip=True) if abv_tag else "N/A"
