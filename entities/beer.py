@@ -11,6 +11,10 @@ class Beer:
     style: str
     beer_url: str
     image_url: str
+    image_file: str = "N/A"
+    label_color: str = "N/A"
+    text_color: str = "N/A"
+    analysis_error: str = ""
 
     @classmethod
     def from_html(cls, beer):
@@ -67,3 +71,16 @@ class Beer:
         if self.image_url:
             return self.image_url.split("/")[-1]
         return "N/A"
+
+    def set_analysis(self, image_file, label_color, text_color, analysis_error):
+        self.image_file = image_file
+        self.label_color = label_color
+        self.text_color = text_color
+        self.analysis_error = analysis_error
+
+    def to_csv_row(self):
+        link_formula = f'=HYPERLINK("{self.beer_url}", "Beer Page")' if self.beer_url != "N/A" else "N/A"
+        return [
+            self.name, self.brewery, self.price, self.rating, self.abv, self.style,
+            self.image_file, link_formula, self.country, self.label_color, self.text_color, self.analysis_error
+        ]

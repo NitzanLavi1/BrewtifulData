@@ -20,6 +20,11 @@ from typing import Dict, List, Optional
 from datetime import datetime
 from core.config import BEER_IMAGE_DIR, LLAVA_OUTPUT_CSV, LLAVA_OUTPUT_JSON, LLAVA_BEERS_CSV
 import re
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # Configuration
 OLLAMA_BASE_URL = "http://localhost:11434"
@@ -34,14 +39,14 @@ def check_ollama_connection():
         response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
         if response.status_code == 200:
             models = response.json().get('models', [])
-            print(f"✅ Ollama is running. Available models: {[m['name'] for m in models]}")
+            logger.info(f"Ollama is running. Available models: {[m['name'] for m in models]}")
             return True
         else:
-            print(f"❌ Ollama responded with status code: {response.status_code}")
+            logger.warning(f"Ollama responded with status code: {response.status_code}")
             return False
     except requests.exceptions.RequestException as e:
-        print(f"❌ Cannot connect to Ollama: {e}")
-        print("Make sure Ollama is running: ollama serve")
+        logger.error(f"Cannot connect to Ollama: {e}")
+        logger.error("Make sure Ollama is running: ollama serve")
         return False
 
 def check_llava_model():
@@ -56,16 +61,16 @@ def check_llava_model():
             llava_models = [m for m in model_names if 'llava' in m.lower()]
             
             if llava_models:
-                print(f"✅ LLaVA models found: {llava_models}")
+                logger.info(f"LLaVA models found: {llava_models}")
                 return True, llava_models[0]  # Return first available LLaVA model
             else:
-                print("❌ No LLaVA models found")
-                print("Available models:", model_names)
+                logger.warning("No LLaVA models found")
+                logger.info(f"Available models: {model_names}")
                 return False, None
         else:
             return False, None
     except Exception as e:
-        print(f"❌ Error checking models: {e}")
+        logger.error(f"Error checking models: {e}")
         return False, None
 
 def encode_image_to_base64(image_path: str) -> str:
@@ -74,7 +79,7 @@ def encode_image_to_base64(image_path: str) -> str:
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
-        print(f"❌ Error encoding image {image_path}: {e}")
+        logger.error(f"Error encoding image {image_path}: {e}")
         return ""
 
 def create_llava_prompt(beer_data: Dict) -> str:
@@ -141,7 +146,7 @@ def analyze_beer_with_llava(image_path, beer_data, model_name):
 
 def create_fallback_analysis(content: str, beer_data: Dict) -> Dict:
     """Create a fallback analysis when JSON parsing fails."""
-    print("🔄 Creating fallback analysis from text response...")
+    logger.info("Creating fallback analysis from text response...")
     
     # Try to extract color information from the text
     content_lower = content.lower()
@@ -235,4 +240,4 @@ def save_llava_results(results: List[Dict], output_csv: str = LLAVA_OUTPUT_CSV, 
     df = pd.DataFrame(csv_data)
     df.to_csv(output_csv, index=False)
     
-    print(f"✅ LLaVA analysis results saved to {output_csv} and {output_json}")
+    logger.info(f"LLaVA analysis results saved to {output_csv} and {output_json}")

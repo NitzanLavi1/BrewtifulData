@@ -1,3 +1,0 @@
-# Ignore everything in outputs except master.csv
-outputs/*
-!outputs/master.csv
