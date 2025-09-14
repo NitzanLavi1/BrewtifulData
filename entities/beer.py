@@ -17,7 +17,7 @@ class Beer:
     analysis_error: str = ""
 
     @classmethod
-    def from_html(cls, beer):
+    def from_html(cls, beer) -> "Beer | None":
         name_tag = beer.select_one('[itemprop="name"]')
         name = name_tag.get_text(strip=True) if name_tag else "N/A"
 
@@ -72,13 +72,13 @@ class Beer:
             return self.image_url.split("/")[-1]
         return "N/A"
 
-    def set_analysis(self, image_file, label_color, text_color, analysis_error):
+    def set_analysis(self, image_file: str, label_color: str, text_color: str, analysis_error: str) -> None:
         self.image_file = image_file
         self.label_color = label_color
         self.text_color = text_color
         self.analysis_error = analysis_error
 
-    def to_csv_row(self):
+    def to_csv_row(self) -> list[str]:
         link_formula = f'=HYPERLINK("{self.beer_url}", "Beer Page")' if self.beer_url != "N/A" else "N/A"
         return [
             self.name, self.brewery, self.price, self.rating, self.abv, self.style,

@@ -17,41 +17,23 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 csv_manager = CsvManager(MASTER_HEADER)
 
-def ensure_dirs():
+def ensure_dirs() -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     os.makedirs(PAGINATED_DIR, exist_ok=True)
 
-def batch_csv_path(csv_manager, batch_start, batch_end):
-    return csv_manager.batch_csv_path(PAGINATED_DIR, batch_start, batch_end)
 
-def batch_is_complete(csv_manager, batch_csv):
-    return csv_manager.is_complete(batch_csv)
-
-def init_master_csv(csv_manager):
-    csv_manager.init_master_csv(MASTER_CSV)
-
-def scrape_page(page_num):
-    url = BASE_URL + str(page_num)
-    response = requests.get(url, headers=HEADERS)
-    soup = BeautifulSoup(response.text, "html.parser")
-    beer_rows = soup.select("div.beer-row")
-    return beer_rows
-
-def analyze_image(image_path, beer_data, model_name):
+def analyze_image(image_path: str, beer_data: dict, model_name: str) -> dict:
     analysis = analyze_beer_with_llava(image_path, beer_data, model_name)  # Pass image_path
     os.remove(image_path)
+    
     return analysis
 
-def write_batch(csv_manager, batch_csv, batch_rows):
-    csv_manager.write_batch(batch_csv, batch_rows)
 
-def append_master(csv_manager, batch_rows):
-    csv_manager.append_master(MASTER_CSV, batch_rows)
-
-def run(logger, csv_manager):
+def run(logger: logging.Logger, csv_manager: CsvManager) -> None:
     has_llava, model_name = check_llava_model()
     if not has_llava:
         logger.error("No LLaVA model found. Please pull a LLaVA model first.")
+        
         return
 
     page_num = START_PAGE
@@ -62,6 +44,7 @@ def run(logger, csv_manager):
 
         if csv_manager.is_complete(batch_csv):
             page_num = batch_end + 1
+            
             continue
 
         batch_rows = []

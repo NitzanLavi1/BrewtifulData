@@ -1,7 +1,7 @@
 import logging
 from entities.csv_ent import CsvManager
-from core.config import MASTER_HEADER
-from core.scrape_and_analyze import run, ensure_dirs, init_master_csv
+from core.config import MASTER_HEADER, MASTER_CSV
+from core.scrape_and_analyze import run, ensure_dirs
 
 def main():
     # Set up logger
@@ -13,7 +13,7 @@ def main():
 
     # Project setup
     ensure_dirs()
-    init_master_csv(csv_manager)
+    csv_manager.init_master_csv(MASTER_CSV)
 
     # Call run, passing dependencies
     run(logger=logger, csv_manager=csv_manager)

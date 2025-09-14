@@ -6,7 +6,7 @@ This project scrapes beers from [beerizer.com](https://beerizer.com), analyzes e
 
 ## Features
 
-- **Scrapes all beers from Beerizer**
+git- **Scrapes all beers from Beerizer**
 - **Downloads, analyzes, and deletes each beer image one at a time**
 - **Saves every batch of pages to a separate CSV** (`outputs/paginated/beers_1_100.csv`, etc.)
 - **Appends all results to a master CSV** (`outputs/master.csv`)

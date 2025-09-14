@@ -16,7 +16,7 @@ import requests
 import json
 import time
 import base64
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 from core.config import BEER_IMAGE_DIR, LLAVA_OUTPUT_CSV, LLAVA_OUTPUT_JSON, LLAVA_BEERS_CSV
 import re
@@ -33,23 +33,26 @@ MAX_RETRIES = 3
 RETRY_DELAY = 2
 MAX_BEERS = 10  # Limit to 5 beers for testing
 
-def check_ollama_connection():
+def check_ollama_connection() -> bool:
     """Check if Ollama is running and accessible."""
     try:
         response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
         if response.status_code == 200:
             models = response.json().get('models', [])
             logger.info(f"Ollama is running. Available models: {[m['name'] for m in models]}")
+            
             return True
         else:
             logger.warning(f"Ollama responded with status code: {response.status_code}")
+            
             return False
     except requests.exceptions.RequestException as e:
         logger.error(f"Cannot connect to Ollama: {e}")
         logger.error("Make sure Ollama is running: ollama serve")
+        
         return False
 
-def check_llava_model():
+def check_llava_model() -> tuple[bool, Optional[str]]:
     """Check if LLaVA model is available."""
     try:
         response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
@@ -66,23 +69,28 @@ def check_llava_model():
             else:
                 logger.warning("No LLaVA models found")
                 logger.info(f"Available models: {model_names}")
+                
                 return False, None
         else:
+            
             return False, None
     except Exception as e:
         logger.error(f"Error checking models: {e}")
+        
         return False, None
 
 def encode_image_to_base64(image_path: str) -> str:
     """Encode image to base64 for LLaVA API."""
     try:
         with open(image_path, "rb") as image_file:
+            
             return base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
         logger.error(f"Error encoding image {image_path}: {e}")
+        
         return ""
 
-def create_llava_prompt(beer_data: Dict) -> str:
+def create_llava_prompt(beer_data: Dict[str, Any]) -> str:
     """Create a comprehensive prompt for LLaVA beer label analysis."""
     
     prompt = f"""
@@ -98,9 +106,10 @@ Identify the main label color (background color of the label) and the main text 
 Use only basic color names like: black, white, red, blue, green, yellow, orange, purple, brown, gray, gold, silver, pink, etc.
 Respond with valid JSON only.
 """
+    
     return prompt
 
-def analyze_beer_with_llava(image_path, beer_data, model_name):
+def analyze_beer_with_llava(image_path: str, beer_data: Dict[str, Any], model_name: str) -> Dict[str, Any]:
     try:
         image_b64 = encode_image_to_base64(image_path)
         prompt = create_llava_prompt(beer_data)
@@ -132,19 +141,23 @@ def analyze_beer_with_llava(image_path, beer_data, model_name):
         if match:
             try:
                 analysis = json.loads(match.group(0))
+                
                 return analysis
             except Exception:
+                
                 return create_fallback_analysis(full_response, beer_data)
         else:
+            
             return create_fallback_analysis(full_response, beer_data)
     except Exception as e:
+        
         return {
             "label_color": "N/A",
             "text_color": "N/A",
             "error": str(e)
         }
 
-def create_fallback_analysis(content: str, beer_data: Dict) -> Dict:
+def create_fallback_analysis(content: str, beer_data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a fallback analysis when JSON parsing fails."""
     logger.info("Creating fallback analysis from text response...")
     
@@ -179,18 +192,24 @@ def load_beer_data() -> pd.DataFrame:
     beers_df = pd.read_csv(LLAVA_BEERS_CSV)
     
     # Clean up URLs in beers_df
-    def extract_url(cell):
+    def extract_url(cell: Any) -> Any:
         if isinstance(cell, str) and cell.startswith('=HYPERLINK('):
             parts = cell.split('"')
             if len(parts) > 1:
+                
                 return parts[1]
+        
         return cell
     
     beers_df['URL'] = beers_df['URL'].apply(extract_url)
     
     return beers_df
 
-def save_llava_results(results: List[Dict], output_csv: str = LLAVA_OUTPUT_CSV, output_json: str = LLAVA_OUTPUT_JSON):
+def save_llava_results(
+    results: List[Dict[str, Any]],
+    output_csv: str = LLAVA_OUTPUT_CSV,
+    output_json: str = LLAVA_OUTPUT_JSON
+) -> None:
     """Save LLaVA analysis results to CSV and JSON files."""
     
     # Save as JSON for detailed analysis
