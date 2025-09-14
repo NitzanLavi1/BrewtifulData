@@ -6,13 +6,18 @@ This project scrapes beers from [beerizer.com](https://beerizer.com), analyzes e
 
 ## Features
 
-- **Scrapes all beers from Beerizer (1676 pages)**
+- **Scrapes all beers from Beerizer**
 - **Downloads, analyzes, and deletes each beer image one at a time**
-- **Saves every 100 pages to a separate CSV** (`outputs/paginated/beers_1_100.csv`, `outputs/paginated/beers_101_200.csv`, ...)
+- **Saves every batch of pages to a separate CSV** (`outputs/paginated/beers_1_100.csv`, etc.)
 - **Appends all results to a master CSV** (`outputs/master.csv`)
 - **Skips already completed batches for safe resuming**
 - **Only includes beers with a valid rating**
 - **LLaVA (via Ollama) vision analysis of beer label images**
+- **Modular code:**  
+  - All beer logic in `entities/beer.py`
+  - All page scraping logic in `entities/page.py`
+  - All CSV logic in `entities/csv_ent.py`
+  - Main orchestration in `core/scrape_and_analyze.py` and `root/runner.py`
 
 ---
 
@@ -24,7 +29,7 @@ This project scrapes beers from [beerizer.com](https://beerizer.com), analyzes e
 
 Install dependencies:
 ```sh
-pip install -r requirements.txt
+pip install -r root/requirements.txt
 ```
 
 ---
@@ -33,7 +38,7 @@ pip install -r requirements.txt
 
 1. **Install dependencies:**
    ```sh
-   pip install -r requirements.txt
+   pip install -r root/requirements.txt
    ```
 
 2. **Start Ollama and pull LLaVA:**
@@ -84,10 +89,12 @@ beer project/
 │   └── scrape_and_analyze.py
 ├── entities/
 │   ├── beer.py
-│   ├── csv_manager.py
-│   └── image_manager.py
+│   ├── csv_ent.py
+│   ├── image_manager.py
+│   └── page.py
 ├── outputs/
-│   └── master.csv
+│   ├── master.csv
+│   └── paginated/
 ├── root/
 │   ├── runner.py
 │   ├── requirements.txt
@@ -103,6 +110,6 @@ MIT
 
 ---
 
-**Tip:**  
-If Beerizer changes their HTML, you may need to update the CSS selectors in the script.  
-You can change the batch size by editing `BATCH_SIZE` in `config.py`.
+**Tips:**  
+- If Beerizer changes their HTML, you may need to update the CSS selectors in `entities/page.py`.
+- You can change the batch size by editing `BATCH_SIZE` in `core/config.py`.
