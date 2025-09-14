@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from core.llava_analysis import analyze_beer_with_llava, check_llava_model, DEFAULT_MODEL
 from core.config import BASE_URL, NUM_PAGES, HEADERS, OUTPUT_DIR, PAGINATED_DIR, MASTER_CSV, MASTER_HEADER, BATCH_SIZE, BEER_IMAGE_DIR, START_PAGE
 from entities.image_manager import ImageManager
+from entities.page import Page
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -67,12 +68,12 @@ def run(logger, csv_manager):
         for p in range(batch_start, batch_end + 1):
             logger.info(f"--- Scraping page {p} ---")
             try:
-                beer_rows = scrape_page(p)
-                if not beer_rows:
+                page = Page(p)
+                beer_objs = page.get_beers()
+                if not beer_objs:
                     break
 
-                for beer in beer_rows:
-                    beer_obj = Beer.from_html(beer)
+                for beer_obj in beer_objs:
                     if not beer_obj or not beer_obj.has_valid_rating():
                         logger.warning("Beer NOT appended (missing or invalid data).")
                         continue
